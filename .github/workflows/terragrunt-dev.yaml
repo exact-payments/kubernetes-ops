@@ -99,7 +99,15 @@ jobs:
             fi
           done < file3.txt
           tf_config="{\"include\":[$tf_config]}"
-          echo "::set-output name=matrix::$tf_config"
+          echo "## tf_config"
+          echo $tf_config
+          #echo "::set-output name=matrix::$tf_config" # Deprecated dont use anymore
+          echo "matrix=${tf_config}" >> $GITHUB_OUTPUT
+          echo "## GITHUB_OUTPUT"
+          echo $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+
+    
   terragrunt:
     name: 'Terragrunt'
     needs: [generate_matrix]

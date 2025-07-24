@@ -253,3 +253,9 @@ variable "cluster_addons" {
   type        = any
   default     = {}
 }
+
+variable "kms_key_administrators" {
+  description = "A list of IAM role ARNs to grant administrator access to the KMS keys."
+  type        = list(string)
+  default     = []
+}

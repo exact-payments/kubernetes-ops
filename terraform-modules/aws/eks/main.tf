@@ -131,6 +131,53 @@ resource "aws_iam_role_policy_attachment" "amazon_cni_driver" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_iam_policy_document" "log_key_policy" {
+  statement {
+    sid       = "Enable Root User Permissions"
+    effect    = "Allow"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  statement {
+    sid       = "Allow CloudWatch Logs Service"
+    effect    = "Allow"
+    actions   = [ "kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*" ]
+    resources = ["*"]
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${var.aws_region}.amazonaws.com"]
+    }
+  }
+
+  dynamic "statement" {
+    # This statement will only be generated if the list of admins is not empty
+    for_each = length(var.kms_key_administrators) > 0 ? [1] : []
+
+    content {
+      sid       = "Allow Key Administrators"
+      effect    = "Allow"
+      actions   = ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"]
+      resources = ["*"]
+      principals {
+        type        = "AWS"
+        identifiers = var.kms_key_administrators
+      }
+    }
+  }
+}
+
+resource "aws_kms_key" "log_key" {
+  description         = "KMS key for CloudWatch log group /aws/eks/${var.cluster_name}/cluster"
+  policy              = data.aws_iam_policy_document.log_key_policy.json
+  enable_key_rotation = true
+  tags                = var.tags
+
 # IAM CloudWatch Observability Role
 data "aws_iam_policy_document" "cw" {
   statement {
@@ -186,7 +233,7 @@ module "eks" {
     resources        = ["secrets"]
   }]
 
-  cloudwatch_log_group_kms_key_id = module.kms_cloudwatch_log_group.kms_arn
+  cloudwatch_log_group_kms_key_id = aws_kms_key.log_key.arn
   cloudwatch_log_group_retention_in_days = var.cloudwatch_log_group_retention_in_days
   cluster_enabled_log_types     = var.cluster_enabled_log_types
 
