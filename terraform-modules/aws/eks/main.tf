@@ -177,6 +177,7 @@ resource "aws_kms_key" "log_key" {
   policy              = data.aws_iam_policy_document.log_key_policy.json
   enable_key_rotation = true
   tags                = var.tags
+}
 
 # IAM CloudWatch Observability Role
 data "aws_iam_policy_document" "cw" {
